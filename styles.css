@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Jost&display=swap');
+:root {
+  /* Responsive font-size that other things will be sized
+  relative to */
+  font-size: min(3.3vh, 4vw);
+  font-family: Jost;
+  color: #fea;
+}
+body {
+  margin: 0;
+  height: 100vh;
+  background-color: #555;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+#board {
+  position: relative;
+  width: 12rem;
+  height: 28rem;
+  background-color: black;
+}
+p {
+  margin: 0;
+}
+#info {
+  font-size: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#next {
+  position: relative;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 2rem;
+  background-color: black;
+  margin: 0 1rem;
+}
+#next-next {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+  border-radius: 1rem;
+  background-color: black;
+  margin: 0 1rem;
+}

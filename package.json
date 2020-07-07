@@ -1,0 +1,17 @@
+{
+  "name": "fallingBlocks",
+  "version": "1.0.0",
+  "description": "A tetris variant with more interesting blocks",
+  "main": "fallingBlocks.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "babel prebabel -d ."
+  },
+  "keywords": [],
+  "author": "Matei F. Mandache <matei.mandache@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.7.0"
+  }
+}
