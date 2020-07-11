@@ -109,6 +109,10 @@ function Polyomino(cells) {
 // no valid polyominos of size 0
 let polyominos = [ [ ] ];
 
+// We assign hues to polyominos sequentially,
+// using the golden ratio angle 137.507764
+let currentHue = 0;
+
 for (let size = 1; size <= 10; size++) {
   // We use an object as a hash table for seeing whther a polyomino
   // has been added or not
@@ -128,6 +132,9 @@ for (let size = 1; size <= 10; size++) {
       table[pol.flip().rotate().toString()] = true;
       table[pol.flip().rotate().rotate().toString()] = true;
       table[pol.flip().rotate().rotate().rotate().toString()] = true;
+      // set the hue of the polyomino, and update current hue
+      pol.hue = currentHue;
+      currentHue = (currentHue + 137.507764) % 360;
       // add polyomino to unique list
       uniquePolyominos.push(pol.dataify());
     }
