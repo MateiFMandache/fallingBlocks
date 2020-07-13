@@ -47,14 +47,27 @@ button {
   color: black;
   margin: 0.5rem;
 }
-p {
-  margin: 0;
+#instructions {
+  display: none;
+}
+#instructions p {
+  margin: 0.5rem;
+  text-align: center;
+}
+#instructions-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
 }
 #info {
   font-size: 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+#info p {
+  margin: 0;
+  text-align: center;
 }
 #next {
   position: relative;

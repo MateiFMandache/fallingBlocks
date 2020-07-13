@@ -8,10 +8,16 @@ var scoreText = document.getElementById("score");
 var stageText = document.getElementById("stage");
 var startButton = document.getElementById("start-button");
 var menu = document.getElementById("menu");
-var instructions = document.getElementById("Instructions");
+var instructions = document.getElementById("instructions");
 var endingMenu = document.getElementById("ending-menu");
 var endingScore = document.getElementById("ending-score");
 var endingButton = document.getElementById("ending-button");
+var instructionsButton = document.getElementById("instructions-button");
+var instructions1 = document.getElementById("instructions1");
+var instructions2 = document.getElementById("instructions2");
+var instructions3 = document.getElementById("instructions3");
+var instructionsButton1 = document.getElementById("instructions-button1");
+var instructionsButton2 = document.getElementById("instructions-button2");
 
 var polyominos;
 var getPolyominos = new XMLHttpRequest();
@@ -441,3 +447,53 @@ function goToMenu() {
 }
 
 endingButton.addEventListener("click", goToMenu);
+
+instructionsButton.addEventListener("click", function () {
+  menu.style.display = "none";
+  instructions.style.display = "block";
+  goToInstructionsPage(1);
+});
+
+var instructionsPage = 1;
+
+function goToInstructionsPage(page) {
+  instructionsPage = page;
+  switch (page) {
+    case 1:
+      instructions1.style.display = "block";
+      instructions2.style.display = "none";
+      instructions3.style.display = "none";
+      instructionsButton2.innerHTML = "Next";
+      break;
+    case 2:
+      instructions1.style.display = "none";
+      instructions2.style.display = "block";
+      instructions3.style.display = "none";
+      instructionsButton2.innerHTML = "Next";
+      break;
+    case 3:
+      instructions1.style.display = "none";
+      instructions2.style.display = "none";
+      instructions3.style.display = "block";
+      instructionsButton2.innerHTML = "Start";
+      break;
+  }
+}
+
+instructionsButton1.addEventListener("click", function () {
+  if (instructionsPage > 1) {
+    goToInstructionsPage(instructionsPage - 1);
+  } else {
+    instructions.style.display = "none";
+    menu.style.display = "flex";
+  }
+});
+
+instructionsButton2.addEventListener("click", function () {
+  if (instructionsPage < 3) {
+    goToInstructionsPage(instructionsPage + 1);
+  } else {
+    instructions.style.display = "none";
+    start();
+  }
+});
