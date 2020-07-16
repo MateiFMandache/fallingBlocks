@@ -62,7 +62,11 @@ rubble.initialise = function() {
           block.style.position = "absolute";
           block.style.top = `${rowNum}rem`;
           block.style.left = `${i}rem`;
-          block.style.backgroundColor = "var(--main-grey)";
+          // Make blocks gradually change from background grey =
+          // hsl(0, 0%, (100/3)%) to middle grey = hsl(0, 0%, (150)/3%)
+          block.style.background = `linear-gradient(0deg,
+                            hsl(0, 0%, ${(150 - 50 * (rowNum-16)/11)/3}%),
+                            hsl(0, 0%, ${(150 - 50 * (rowNum-17)/11)/3}%))`;
           row.push(block);
         } else {
           row.push(null);
@@ -103,6 +107,7 @@ rubble.clear = function() {
       flashes.push(flash);
     }
   }
+  game.score += 5 * game.stage * ((fullRows.length)*(fullRows.length + 1)/2);
   // Actions to be performed after 100ms: remove flashes and collapse
   // rows.
   setTimeout(function() {
@@ -149,13 +154,155 @@ let game = {
     this._progress = value;
     // reach 50 for stage 2, 150 = 50 + 100 for stage 3,
     // 300 = 50 + 100 + 150 for stage 4 etc. .
+    // Stage 10 is the last stage.
     // This is accomplished by the formula below
-    this.stage = 1 + Math.floor(Math.sqrt(value/25 + 1/4)-1/2)
+    this.stage = Math.min(1 + Math.floor(Math.sqrt(value/25 + 1/4)-1/2), 10)
     stageText.innerHTML = this.stage.toString();
   },
+  reset: function() {
+    this.score = 0;
+    this.progress = 0;
+    delete this.lastDifficulty;
+    delete this.lastLastDifficulty;
+  },
+  getNextDifficulty: function() {
+    /**
+     * Each size is selected based on a difficulty and the current
+     * stage number. This function generates the difficulties.
+     *
+     * Each difficulty is a uniform random variable in [0, 1]. However,
+     * they are not chosen independently. After an easier block, harder
+     * blocks are more likely and vice versa.
+     *
+     * The joint probability distribution for two consecutive
+     * difficulties X and Y has probability density function
+     * 2(x(1-y) + (1-x)y).
+     *
+     * The joint probability distribution for three consecutive
+     * difficulties X, Y and Z has probability density function
+     * 8(x^3(1-y)(z-z^3) + (x-x^3)(1-y)z^3
+     *   + (1-x-(1-x)^3)y(1-z)^3 + (1-x)^3y(1-z-(1-z)^3))
+     *
+     * There is no dependence other than this. The sequence of
+     * difficulties X_1, X_2, ... satisfies the generalised markov
+     * property that (X_n | H) ~ (X_n|X_{n-1}, X_{n-2})
+     *
+     * We sample from distributions where the pdf is a sum of terms
+     * by using the law of total expectation conditioning on an extra
+     * case variable, which basically says which part of the sum we are
+     * in.
+     */
+
+    // We use order statistics to sample from distributions with
+    // polynomial pdfs. The ith order statistic out of n has pdf
+    // proportional to x^(i-1)(1-x)^(n-i)
+    function orderStatistic(n, i) {
+      let array = [ ];
+      for (let j = 0; j < n; j++) {
+        array.push(Math.random());
+      }
+      array.sort(function(a, b) {return a - b})
+      return array[i-1] // translation to match with zero based array
+    }
+
+    if (this.lastDifficulty === undefined) {
+      // first difficulty in game case. U[0, 1]
+      var result = Math.random();
+    } else if (this.lastLastDifficulty === undefined) {
+      // second difficulty in game case. pdf 2(x(1-y) + (1-x)y)
+      // we are selecting Y.
+      let x = this.lastDifficulty;
+      let caseChooser = Math.random();
+      if (caseChooser < x) {
+        // 2x(1-y) case
+        var result = orderStatistic(2, 1);
+      } else {
+        // 2(1-x)y case
+        var result = orderStatistic(2, 2);
+      }
+    } else {
+      // at least third difficulty in game case.
+      // pdf 8(x^3(1-y)(z-z^3) + (x-x^3)(1-y)z^3
+      //       + (1-x-(1-x)^3)y(1-z)^3 + (1-x)^3y(1-z-(1-z)^3))
+      // we are selecting Z.
+      let x = this.lastLastDifficulty;
+      let y = this.lastDifficulty;
+      let caseChooser = Math.random() * 2 * (x * (1-y) + (1-x) * y);
+      if (caseChooser < 2 * (x * (1-y))) {
+        // 4(x^3(1-y)(z-z^3) + (x-x^3)(1-y)z^3) cases
+        if (caseChooser < 2 * (x**3 * (1-y))) {
+          // 4x^3(1-y)(z-z^3) case
+          // We split z-z^3 into z-z^2 = z(1-z) and z^2-z^3 = z^2(1-z).
+          // The former is twice as big as the latter.
+          var result = (Math.random() < 2/3) ?
+                        orderStatistic(3, 2) :
+                        orderStatistic(4, 3)
+        } else {
+          // 4(x-x^3)(1-y)z^3) case
+          var result = orderStatistic(4, 4);
+        }
+      } else {
+        // 4((1-x-(1-x)^3)y(1-z)^3 + (1-x)^3y(1-z-(1-z)^3)) cases
+        if (caseChooser < 2 * (x * (1-y) + (1-x - (1-x) ** 3) * y)) {
+          // 4(1-x-(1-x)^3)y(1-z)^3 case
+          var result = orderStatistic(4, 1);
+        } else {
+          // 4(1-x)^3y(1-z-(1-z)^3) case
+          // we split 1-z-(1-z)^3 into 1-z-(1-z)^2 = z(1-z) and
+          // (1-z)^2-(1-z)^3 = z(1-z)^2. The former is twice as
+          // big as the latter
+          var result = (Math.random() < 2/3) ?
+                        orderStatistic(3, 2) :
+                        orderStatistic(4, 2)
+        }
+      }
+    }
+    this.lastLastDifficulty = this.lastDifficulty;
+    this.lastDifficulty = result;
+    return result;
+  },
+  testRandomness: function(n) {
+    // function present for testing purposes only
+    let array = [ ];
+    for (let i = 0; i < n*10; i++) {
+      array.push(this.getNextDifficulty());
+    }
+    array.sort(function(a, b) {return a-b});
+    for (let i = 0; i < 10; i++) {
+      console.log(array[n*i]);
+    }
+  },
+  // stageDistributions[n][i] gives the relative frequency of i-square
+  // blocks when at stage n
+  stageDistributions: [
+    [0, 1], // Stage zero doesn't exist, but we give it a value anyway
+    [0, 1, 1, 1, 1], // stage 1
+    [0, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 1],
+    [0, 4, 4, 4, 3, 3, 3, 3], // stage 4
+    [0, 4, 5, 4, 3, 3, 3, 3, 3],
+    [0, 5, 6, 4, 3, 3, 3, 3, 3, 2],
+    [0, 5, 7, 4, 3, 3, 3, 3, 3, 2, 2], // stage 7
+    [0, 6, 7, 5, 3, 3, 3, 3, 3, 3, 3],
+    [0, 6, 7, 6, 3, 3, 3, 3, 3, 4, 4],
+    [0, 7, 8, 7, 3, 3, 3, 3, 4, 5, 5] // stage 10 is the last stage
+  ],
   getNextSize: function() {
-    // function to output the size of the next polyomino
-    return 1 + Math.floor(Math.random()*5);
+    // Function to output the size of the next polyomino.
+    // This is based on a difficultuy and the current stage.
+    let difficulty = this.getNextDifficulty();
+    let sizeFrequencies = this.stageDistributions[this.stage];
+    let totalFrequency = sizeFrequencies.reduce(function(a, b) {return a+b});
+    // index is the total frequency of polyominos smaller than the
+    // one we want to choose.
+    let index = difficulty * totalFrequency;
+    let size = 1;
+    let total = sizeFrequencies[1];
+    while (total < index) {
+      size++;
+      total += sizeFrequencies[size];
+    }
+    return size;
   }
 }
 
@@ -171,6 +318,7 @@ let fallingBlock = {
   },
   newBlock: function(pol) {
     // start at the top with a new block
+    this.active = true;
     this.width = pol.width;
     this.height = pol.height;
     this.cells = pol.cells;
@@ -223,6 +371,7 @@ let fallingBlock = {
       this.screenUpdate();
       setTimeout(function() {fallingBlock.fall();}, (fastFall) ? 100: 500);
     } else {
+      this.active = false;
       this.rubblify();
       rubble.clear();
       setTimeout(incrementBlock, 150);
@@ -241,7 +390,7 @@ let fallingBlock = {
   },
   right: function() {
     let pol = this.righted();
-    if (rubble.test(pol)) {
+    if (rubble.test(pol) && this.active) {
       this.x += 1;
       this.screenUpdate();
     }
@@ -259,7 +408,7 @@ let fallingBlock = {
   },
   left: function() {
     let pol = this.lefted();
-    if (rubble.test(pol)) {
+    if (rubble.test(pol) && this.active) {
       this.x -= 1;
       this.screenUpdate();
     }
@@ -282,7 +431,7 @@ let fallingBlock = {
   },
   rotate: function() {
     let pol = this.rotated();
-    if (rubble.test(pol)) {
+    if (rubble.test(pol) && this.active) {
       this.width = pol.width;
       this.height = pol.height;
       this.cells = pol.cells;
@@ -304,7 +453,7 @@ let fallingBlock = {
   },
   flip: function() {
     let pol = this.flipped();
-    if (rubble.test(pol)) {
+    if (rubble.test(pol) && this.active) {
       this.cells = pol.cells;
       this.screenUpdate();
     }
@@ -410,7 +559,6 @@ function getNextBlock() {
 
 function incrementBlock() {
   game.progress += fallingBlock.size;
-  game.score += fallingBlock.size;
   fallingBlock.newBlock(nextBlock.pol);
   nextBlock.pol = nextNextBlock.pol;
   nextNextBlock.pol = getNextBlock();
@@ -438,8 +586,7 @@ function goToMenu() {
   rubble.initialise();
   nextBlock.undisplay();
   nextNextBlock.undisplay();
-  game.score = 0;
-  game.progress = 0;
+  game.reset();
   endingMenu.style.display = "none";
   menu.style.display = "flex";
 }
