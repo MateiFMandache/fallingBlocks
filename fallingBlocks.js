@@ -18,6 +18,12 @@ var instructions2 = document.getElementById("instructions2");
 var instructions3 = document.getElementById("instructions3");
 var instructionsButton1 = document.getElementById("instructions-button1");
 var instructionsButton2 = document.getElementById("instructions-button2");
+var pausedDiv = document.getElementById("paused");
+var resumeButton = document.getElementById("resume-button");
+
+var fastFall = false;
+var paused = false;
+var unpauseAction;
 
 var polyominos;
 var getPolyominos = new XMLHttpRequest();
@@ -279,8 +285,8 @@ var game = {
   stageDistributions: [[0, 1], // Stage zero doesn't exist, but we give it a value anyway
   [0, 1, 1, 1, 1], // stage 1
   [0, 1, 1, 1, 1, 1], [0, 1, 1, 1, 1, 1, 1], [0, 4, 4, 4, 3, 3, 3, 3], // stage 4
-  [0, 4, 5, 4, 3, 3, 3, 3, 3], [0, 5, 6, 4, 3, 3, 3, 3, 3, 2], [0, 5, 7, 4, 3, 3, 3, 3, 3, 2, 2], // stage 7
-  [0, 6, 7, 5, 3, 3, 3, 3, 3, 3, 3], [0, 6, 7, 6, 3, 3, 3, 3, 3, 4, 4], [0, 7, 8, 7, 3, 3, 3, 3, 4, 5, 5] // stage 10 is the last stage
+  [0, 4, 5, 4, 3, 3, 3, 3, 3], [0, 5, 6, 4, 3, 3, 3, 3, 3, 2], [0, 6, 7, 5, 3, 3, 3, 3, 3, 2, 2], // stage 7
+  [0, 6, 7, 5, 3, 3, 3, 3, 3, 3, 3], [0, 5, 6, 4, 3, 3, 3, 3, 3, 3, 3], [0, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3] // stage 10 is the last stage
   ],
   getNextSize: function getNextSize() {
     // Function to output the size of the next polyomino.
@@ -360,18 +366,22 @@ var fallingBlock = {
     return pol;
   },
   fall: function fall() {
-    var pol = this.fallen();
-    if (rubble.test(pol)) {
-      this.y += 1;
-      this.screenUpdate();
-      setTimeout(function () {
-        fallingBlock.fall();
-      }, fastFall ? 100 : 500);
+    if (paused) {
+      unpauseAction = "fall";
     } else {
-      this.active = false;
-      this.rubblify();
-      rubble.clear();
-      setTimeout(incrementBlock, 150);
+      var pol = this.fallen();
+      if (rubble.test(pol)) {
+        this.y += 1;
+        this.screenUpdate();
+        setTimeout(function () {
+          fallingBlock.fall();
+        }, fastFall ? 100 : 500);
+      } else {
+        this.active = false;
+        this.rubblify();
+        rubble.clear();
+        setTimeout(incrementBlock, 150);
+      }
     }
   },
   righted: function righted() {
@@ -459,18 +469,39 @@ var fallingBlock = {
   }
 };
 
-var fastFall = false;
+function togglePause() {
+  if (!paused) {
+    paused = true;
+    unpauseAction = null;
+    pausedDiv.style.display = "flex";
+  } else {
+    paused = false;
+    pausedDiv.style.display = "none";
+    if (unpauseAction === "fall") {
+      fallingBlock.fall();
+    } else if (unpauseAction === "incrementBlock") {
+      incrementBlock();
+    }
+  }
+}
+
+resumeButton.addEventListener("click", togglePause);
+
 root.addEventListener("keydown", function (event) {
   if (event.keyCode == 40) {
     fastFall = true;
-  } else if (event.keyCode == 39) {
-    fallingBlock.right();
-  } else if (event.keyCode == 37) {
-    fallingBlock.left();
-  } else if (event.keyCode == 38) {
-    fallingBlock.rotate();
-  } else if (event.keyCode == 32) {
-    fallingBlock.flip();
+  } else if (event.keyCode == 80) {
+    togglePause();
+  } else if (!paused) {
+    if (event.keyCode == 39) {
+      fallingBlock.right();
+    } else if (event.keyCode == 37) {
+      fallingBlock.left();
+    } else if (event.keyCode == 38) {
+      fallingBlock.rotate();
+    } else if (event.keyCode == 32) {
+      fallingBlock.flip();
+    }
   }
 });
 root.addEventListener("keyup", function (event) {
@@ -553,10 +584,14 @@ function getNextBlock() {
 }
 
 function incrementBlock() {
-  game.progress += fallingBlock.size;
-  fallingBlock.newBlock(nextBlock.pol);
-  nextBlock.pol = nextNextBlock.pol;
-  nextNextBlock.pol = getNextBlock();
+  if (paused) {
+    unpauseAction = "incrementBlock";
+  } else {
+    game.progress += fallingBlock.size;
+    fallingBlock.newBlock(nextBlock.pol);
+    nextBlock.pol = nextNextBlock.pol;
+    nextNextBlock.pol = getNextBlock();
+  }
 }
 
 function activateStart() {
