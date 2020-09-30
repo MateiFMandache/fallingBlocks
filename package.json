@@ -5,7 +5,7 @@
   "main": "fallingBlocks.html",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "babel prebabel -d ."
+    "build": "babel src -d ."
   },
   "keywords": [],
   "author": "Matei F. Mandache <matei.mandache@gmail.com>",

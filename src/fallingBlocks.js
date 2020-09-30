@@ -23,6 +23,16 @@ let fastFall = false;
 var paused = false;
 var unpauseAction;
 
+let HEIGHT = 28;
+let WIDTH = 12;
+let BASE_POINTS = 5;
+let FLASH_DURATION = 100;
+let FAST_FALL_TIME = 100;
+let FALL_TIME = 500;
+let NEXT_BLOCK_TIME = 150;
+let NEXT_WIDTH = 10;
+let NEXT_NEXT_WIDTH = 5;
+
 var polyominos;
 var getPolyominos = new XMLHttpRequest();
 getPolyominos.open("GET", "./polyominos.json");
@@ -37,29 +47,29 @@ getPolyominos.send();
 var rubble = [ ];
 rubble.initialise = function() {
   // remove any remaining blocks
-  let oldRubble = rubble.splice(0, 28);
+  let oldRubble = rubble.splice(0, HEIGHT);
   for (let rowNum = 0; rowNum < oldRubble.length; rowNum++) {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < WIDTH; i++) {
       if (oldRubble[rowNum][i]) {
         board.removeChild(oldRubble[rowNum][i]);
       }
     }
   }
   // build rubble
-  for (let rowNum = 0; rowNum < 28; rowNum++) {
+  for (let rowNum = 0; rowNum < HEIGHT; rowNum++) {
     let row = [ ];
-    if (rowNum < 17) {
-      for (let i = 0; i < 12; i++) {
+    if (rowNum <= HEIGHT - WIDTH) {
+      for (let i = 0; i < WIDTH; i++) {
         row.push(null);
       }
     } else {
-      let rubbleBlocksLeft = rowNum - 16;
-      // We add 11 rubble blocks on the bottom row, 10 on the next row,
-      // 9 on the next and so on.
-      for (let i = 0; i < 12; i++) {
+      let rubbleBlocksLeft = rowNum - (HEIGHT - WIDTH);
+      // We add WIDTH - 1 rubble blocks on the bottom row, WIDTH - 2 on
+      // the next row, WIDTH - 3 on the next and so on.
+      for (let i = 0; i < WIDTH; i++) {
         // randomly either include a rubble block or not, depending on
         // how many rubble blocks are left.
-        if (Math.random()*(12-i) < rubbleBlocksLeft) {
+        if (Math.random()*(WIDTH-i) < rubbleBlocksLeft) {
           rubbleBlocksLeft--;
           let block = document.createElement("DIV");
           board.appendChild(block);
@@ -71,8 +81,8 @@ rubble.initialise = function() {
           // Make blocks gradually change from background grey =
           // hsl(0, 0%, (100/3)%) to middle grey = hsl(0, 0%, (150)/3%)
           block.style.background = `linear-gradient(0deg,
-                            hsl(0, 0%, ${(150 - 50 * (rowNum-16)/11)/3}%),
-                            hsl(0, 0%, ${(150 - 50 * (rowNum-17)/11)/3}%))`;
+            hsl(0, 0%, ${(150 - 50 * (rowNum-(HEIGHT-WIDTH))/(WIDTH-1))/3}%),
+            hsl(0, 0%, ${(150 - 50 * (rowNum-(HEIGHT-WIDTH+1))/(WIDTH-1))/3}%))`;
           row.push(block);
         } else {
           row.push(null);
@@ -86,8 +96,8 @@ rubble.initialise();
 rubble.test = function(pol) {
   // returns whether given polyomino is in a clear position
   for (let i = 0; i < pol.size; i++) {
-    if (pol.y + pol.cells[i][1] >= 28 || pol.y + pol.cells[i][1] < 0 ||
-        pol.x + pol.cells[i][0] >= 12 || pol.x + pol.cells[i][0] < 0 ||
+    if (pol.y + pol.cells[i][1] >= HEIGHT || pol.y + pol.cells[i][1] < 0 ||
+        pol.x + pol.cells[i][0] >= WIDTH  || pol.x + pol.cells[i][0] < 0 ||
         rubble[pol.y + pol.cells[i][1]][pol.x + pol.cells[i][0]] !== null) {
       return false;
     }
@@ -96,10 +106,11 @@ rubble.test = function(pol) {
 }
 rubble.clear = function() {
   // Checks for full rows and removes them after brief animation.
-  // Animation consists of disappearing rows flashing for 100ms
+  // Animation consists of disappearing rows flashing for
+  // FLASH_DURATION = 100 milliseconds
   let fullRows = [ ];
   let flashes = [ ];
-  for (let rowNum = 27; rowNum >= 0; rowNum--) {
+  for (let rowNum = HEIGHT - 1; rowNum >= 0; rowNum--) {
     if (rubble[rowNum].every(value => value !== null)) {
       fullRows.push(rowNum);
       let flash = document.createElement("DIV");
@@ -113,7 +124,8 @@ rubble.clear = function() {
       flashes.push(flash);
     }
   }
-  game.score += 5 * game.stage * ((fullRows.length)*(fullRows.length + 1)/2);
+  game.score += BASE_POINTS * game.stage
+    * ((fullRows.length)*(fullRows.length + 1)/2);
   // Actions to be performed after 100ms: remove flashes and collapse
   // rows.
   setTimeout(function() {
@@ -126,20 +138,20 @@ rubble.clear = function() {
     // insert new empty rows at the top
     for (let j = 0; j < fullRows.length; j++) {
       let newRow = [ ];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < WIDTH; i++) {
         newRow.push(null);
       }
       rubble.unshift(newRow);
     }
     // move divs to where they ought to be
-    for (let rowNum = 0; rowNum < 28; rowNum++) {
-      for (let i = 0; i < 12; i++) {
+    for (let rowNum = 0; rowNum < HEIGHT; rowNum++) {
+      for (let i = 0; i < WIDTH; i++) {
         if (rubble[rowNum][i] !== null) {
           rubble[rowNum][i].style.top = `${rowNum}rem`;
         }
       }
     }
-  }, 100);
+  }, FLASH_DURATION);
 }
 
 let game = {
@@ -331,7 +343,7 @@ let fallingBlock = {
     this.size = pol.size;
     this.hue = pol.hue;
     this.y = 0;
-    this.x = Math.floor(6 - this.width/2);
+    this.x = Math.floor(WIDTH / 2 - this.width/2);
     this.divList = [ ];
     if (!rubble.test(this)) {
       gameOver();
@@ -349,7 +361,8 @@ let fallingBlock = {
                                        50%)`
         this.divList.push(square);
       }
-      setTimeout(function() {fallingBlock.fall();}, (fastFall) ? 100: 500);
+      setTimeout(function() {fallingBlock.fall();},
+        (fastFall) ? FAST_FALL_TIME: FALL_TIME);
     }
   },
   screenUpdate: function() {
@@ -378,12 +391,13 @@ let fallingBlock = {
       if (rubble.test(pol)) {
         this.y += 1;
         this.screenUpdate();
-        setTimeout(function() {fallingBlock.fall();}, (fastFall) ? 100: 500);
+        setTimeout(function() {fallingBlock.fall();},
+          (fastFall) ? FAST_FALL_TIME: FALL_TIME);
       } else {
         this.active = false;
         this.rubblify();
         rubble.clear();
-        setTimeout(incrementBlock, 150);
+        setTimeout(incrementBlock, NEXT_BLOCK_TIME);
       }
     }
   },
@@ -487,23 +501,30 @@ resumeButton.addEventListener("click", togglePause);
 
 root.addEventListener("keydown", event => {
   if (event.keyCode == 40) {
+    // down key
     fastFall = true;
   } else if (event.keyCode == 80) {
+    // p pressed
     togglePause();
   } else if (!paused) {
     if (event.keyCode == 39) {
+      // right key
       fallingBlock.right();
     } else if (event.keyCode == 37) {
+      // left key
       fallingBlock.left();
     } else if (event.keyCode == 38) {
+      // up key
       fallingBlock.rotate();
     } else if (event.keyCode == 32) {
+      // space bar
       fallingBlock.flip();
     }
   }
 });
 root.addEventListener("keyup", event => {
   if (event.keyCode == 40) {
+    // down key
     fastFall = false;
   }
 });
@@ -528,9 +549,9 @@ let nextBlock = {
       square.style.width = "1rem";
       square.style.height = "1rem";
       square.style.position = "absolute";
-      square.style.top = `${5 - this._pol.height / 2
+      square.style.top = `${NEXT_WIDTH / 2 - this._pol.height / 2
                             + this._pol.cells[i][1]}rem`;
-      square.style.left = `${5 - this._pol.width / 2
+      square.style.left = `${NEXT_WIDTH / 2 - this._pol.width / 2
                             + this._pol.cells[i][0]}rem`;
       square.style.backgroundColor = `hsl(${this._pol.hue},
                                      ${this._pol.size}0%,
@@ -564,9 +585,9 @@ let nextNextBlock = {
       square.style.width = "0.5rem";
       square.style.height = "0.5rem";
       square.style.position = "absolute";
-      square.style.top = `${2.5 - this._pol.height / 4
+      square.style.top = `${NEXT_NEXT_WIDTH / 2 - this._pol.height / 4
                             + this._pol.cells[i][1]/2}rem`;
-      square.style.left = `${2.5 - this._pol.width / 4
+      square.style.left = `${NEXT_NEXT_WIDTH / 2 - this._pol.width / 4
                             + this._pol.cells[i][0]/2}rem`;
       square.style.backgroundColor = `hsl(${this._pol.hue},
                                      ${this._pol.size}0%,
